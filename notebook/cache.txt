@@ -1,0 +1,46 @@
+(money_flow_df['money_change'] == 0.0).sum() / len(money_flow_df)
+money_flow_df['money_change'] = money_flow_df['money_change'].cumsum()
+money_flow_df.index = list(money_flow_df.index)
+money_flow_df
+
+import matplotlib.pyplot as plt
+def plot_and_get_dict(tmp_df):
+    tmp_df['money_change'] = tmp_df['money_change'] +tmp_df['money_change'].sum() *10
+    names=tmp_df.columns
+    #计算净值
+    tmp_df[names[1]+'净值']=tmp_df[names[1]]/tmp_df[names[1]][0]
+    #tmp_df[names[2]+'净值']=tmp_df[names[2]]/tmp_df[names[2]][0]
+    rate = tmp_df[names[1]]/tmp_df[names[1]].shift(1)-1
+    rate[np.isnan(rate)]=0.0
+    tmp_df[names[1]+'涨跌幅']=rate
+    #rate = tmp_df[names[2]]/tmp_df[names[2]].shift(1)-1
+    rate[np.isnan(rate)]=0.0
+    #tmp_df[names[2]+'涨跌幅']=rate
+
+    #将上述股票在回测期间内的净值可视化
+    tmp_df.index = tmp_df.iloc[:,0]
+    tmp_df[list(names[1:3])].plot(figsize=(16,7))
+    #图标题
+    plt.title(names[1],fontsize=15)
+    data_dict= {}
+    data_dict['产品名']=names[1]
+    #data_dict['参考指数']=names[2]
+    data_dict['累计收益']=tmp_df[names[1]+'净值'][-1]-1
+    data_dict['年化收益']=(data_dict['累计收益']+1)**(52/len(tmp_df))-1
+    data_dict['标准差']=(tmp_df[names[1]+'涨跌幅']).std()*np.sqrt(52)
+    data_dict['夏普比率']=data_dict['年化收益']/data_dict['标准差']
+    data_dict['下侧波动率']=(tmp_df[tmp_df[names[1]+'涨跌幅']<0][names[1]+'涨跌幅']).std()
+    data_dict['索提诺比率']=data_dict['年化收益']/data_dict['下侧波动率']
+    data_dict['正收益周'] = len(tmp_df[tmp_df[names[1]+'涨跌幅']>0])
+    data_dict['负收益周'] = len(tmp_df[tmp_df[names[1]+'涨跌幅']<0])
+    data_dict['零收益周'] = len(tmp_df[tmp_df[names[1]+'涨跌幅']==0.0])
+    data_dict['胜率']=data_dict['正收益周']/(data_dict['负收益周']+1)
+    data_dict['盈亏比']=-tmp_df[tmp_df[names[1]+'涨跌幅']>0][names[1]+'涨跌幅'].sum()/data_dict['正收益周']*data_dict['负收益周']/tmp_df[tmp_df[names[1]+'涨跌幅']<0][names[1]+'涨跌幅'].sum()
+    data_dict['最大回撤']=-((tmp_df[names[1]].cummax()-tmp_df[names[1]])/tmp_df[names[1]].cummax()).max()
+    data_dict['收益回撤比']=-data_dict['年化收益']/(data_dict['最大回撤']+0.01)
+    data_dict['最大上涨']=((tmp_df[names[1]]-tmp_df[names[1]].cummin())/tmp_df[names[1]].cummin()).max()
+    data_dict['Calmar']=data_dict['年化收益']/(data_dict['最大回撤']+0.01)
+    data_dict['交易周']=len(tmp_df)
+    data_dict['周平均收益']=data_dict['累计收益']/data_dict['交易周']
+    return data_dict
+plot_and_get_dict(money_flow_df)
